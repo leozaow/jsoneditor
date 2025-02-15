@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Logs{% endblock %}
+
+{% block content %}
+<h2>Logs</h2>
+{% if logs %}
+  <ul class="list-group">
+    {% for log in logs %}
+      <li class="list-group-item">{{ log }}</li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p>Nenhuma ação registrada.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,1023 @@
+{% extends "base.html" %}
+{% block title %}Editor S-1202{% endblock %}
+
+{% block content %}
+<h2>Editor S-1202</h2>
+
+<!-- Botão para Carregar Arquivo (FileReader) -->
+<div class="mb-3">
+  <label for="fileInput"><strong>Carregar Arquivo JSON (não será armazenado no servidor):</strong></label>
+  <input type="file" id="fileInput" accept=".json" class="form-control-file">
+</div>
+
+<!-- Botões principais -->
+<div class="mb-3">
+  <!-- Baixar arquivo em memória -->
+  <button id="downloadBtn" class="btn btn-info">Baixar Edição</button>
+  <!-- Scripts (Substituir Campos) -->
+  <button type="button" class="btn btn-secondary" data-toggle="modal" data-target="#scriptsModal">
+    Scripts (Substituir Campos)
+  </button>
+</div>
+
+<!-- Campo de busca -->
+<div class="form-group">
+  <label for="searchInput">Buscar (CPF, ordemRegistro, etc.):</label>
+  <input type="text" id="searchInput" class="form-control" placeholder="Digite algo para filtrar...">
+</div>
+
+<!-- Tabela de Eventos -->
+<table class="table table-bordered" id="eventosTable">
+  <thead class="thead-light">
+    <tr>
+      <th>Ordem Registro</th>
+      <th>CPF Trabalhador</th>
+      <th>Ano Apuração</th>
+      <th>Período Apuração</th>
+      <th>Ações</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<!-- Modal de Edição de Evento -->
+<div class="modal fade" id="eventoModal" tabindex="-1" aria-labelledby="eventoModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl" style="max-width: 90%;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="eventoModalLabel">Editar Evento</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Fechar">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="eventoForm">
+          <!-- Dados do Evento (campos do topo) -->
+          <div class="form-row">
+            <div class="form-group col-md-3">
+              <label>Ordem Registro</label>
+              <div class="input-group">
+                <input type="text" class="form-control has-placeholder" id="ordemRegistro">
+              </div>
+            </div>
+            <div class="form-group col-md-6">
+              <label>Chave Integração</label>
+              <div class="input-group">
+                <input type="text" class="form-control" id="chaveIntegracao">
+              </div>
+            </div>
+            <div class="form-group col-md-3">
+              <label>Ano Apur</label>
+              <div class="input-group">
+                <input type="text" class="form-control has-placeholder" id="anoApur">
+              </div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-md-4">
+              <label>Ind Apuração</label>
+              <div class="input-group">
+                <input type="text" class="form-control" id="indApuracao">
+              </div>
+            </div>
+            <div class="form-group col-md-4">
+              <label>Possui Período Anterior?</label>
+              <div class="input-group">
+                <input type="text" class="form-control" id="indPossuiPerAnt">
+              </div>
+            </div>
+            <div class="form-group col-md-4">
+              <label>Período Apuração</label>
+              <div class="input-group">
+                <input type="text" class="form-control has-placeholder" id="perApur">
+              </div>
+            </div>
+          </div>
+          <!-- Empregador -->
+          <h5>Empregador</h5>
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label>Nr Insc</label>
+              <div class="input-group">
+                <input type="text" class="form-control" id="empregador_nrInsc">
+              </div>
+            </div>
+            <div class="form-group col-md-6">
+              <label>Tipo Insc</label>
+              <div class="input-group">
+                <input type="text" class="form-control" id="empregador_tpInsc_tipo">
+              </div>
+            </div>
+          </div>
+          <!-- Trabalhador -->
+          <h5>Trabalhador</h5>
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label>CPF</label>
+              <div class="input-group">
+                <input type="text" class="form-control" id="trabalhador_cpfTrab">
+              </div>
+            </div>
+            <div class="form-group col-md-6">
+              <label>Nome Complementar</label>
+              <div class="input-group">
+                <input type="text" class="form-control" id="nmTrabComplem">
+              </div>
+            </div>
+          </div>
+          <!-- Pagamentos -->
+          <h5>Pagamentos</h5>
+          <div id="pagamentosContainer"></div>
+          <button type="button" class="btn btn-outline-primary mb-3" id="addPagamentoBtn">Adicionar Pagamento</button>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
+        <button type="button" class="btn btn-primary" id="saveEventoBtn">Salvar Alterações do Evento</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Scripts (Substituições) -->
+<div class="modal fade" id="scriptsModal" tabindex="-1" aria-labelledby="scriptsModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="scriptsModalLabel">Scripts de Substituição</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Fechar">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>Escolha em qual seção do JSON deseja substituir um determinado campo e valor.</p>
+        <div class="form-group">
+          <label>Seção do Arquivo</label>
+          <select class="form-control" id="scriptScope">
+            <option value="evento">Evento (campos básicos do topo)</option>
+            <option value="pagto">Pagamentos</option>
+            <option value="periodo">Períodos</option>
+            <option value="estab">Estabelecimentos</option>
+            <option value="remu">Remunerações</option>
+            <option value="item">Itens (Rubricas)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Nome do Campo</label>
+          <input type="text" class="form-control" id="scriptField" placeholder="Ex: anoApur, ideDmDev, qtdMesesRRA, codRubr...">
+        </div>
+        <div class="form-group">
+          <label>Valor Antigo (opcional)</label>
+          <input type="text" class="form-control" id="scriptOldValue" placeholder="Ex: *vazio*">
+        </div>
+        <div class="form-group">
+          <label>Novo Valor</label>
+          <input type="text" class="form-control" id="scriptNewValue" placeholder="Ex: 2023-01-01 ou *vazio*">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
+        <button type="button" class="btn btn-primary" id="applyScriptBtn">Aplicar</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+// ==========================================================================
+// 0) FUNÇÃO AUXILIAR: mergeDeep
+function mergeDeep(target, source) {
+  for (let key in source) {
+    if (source.hasOwnProperty(key)) {
+      if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+        if (!target[key]) target[key] = {};
+        mergeDeep(target[key], source[key]);
+      } else if (Array.isArray(source[key])) {
+        if (source[key].length > 0) {
+          target[key] = source[key];
+        }
+      } else {
+        target[key] = source[key];
+      }
+    }
+  }
+  return target;
+}
+
+// ==========================================================================
+// 1) CONFIG: CAMPOS COM PLACEHOLDERS
+const placeholdersMap = {
+  "cnpjOrgaoAntComplem": ["*vazio*"],
+  "dtExercicioComplem": ["*datavazia*"],
+  "dtNasctoComplem": ["*datavazia*"],
+  "matricAntComplem": ["*vazio*"],
+  "observacaoComplem": ["*vazio*"],
+  "descRRA": ["*vazio*"],
+  "indRRA": ["*vazio*"],
+  "nrProcRRA": ["*vazio*"],
+  "qtdMesesRRA": ["*numerovazio*"],
+  "tpProcRRA": ["*vazio*"],
+  "vlrDespAdvogados": ["*numerovazio*"],
+  "vlrDespCustas": ["*numerovazio*"],
+  "contratoTSV": ["*vazio*"],
+  "dtAdm": ["*datavazia*"],
+  "codCateg": ["*numerovazio*"],
+  "fatorRubr": ["*numerovazio*"],
+  "codRubr": ["*numerovazio*"],
+  "iniValid": ["*datavazia*"]
+};
+
+// ==========================================================================
+// 2) ESTRUTURA BASE DE DADOS
+window.esocialData = JSON.parse('{{ data|safe }}') || {
+  s1202RemuTrabRPPSGroup: { s1202RemuTrabRPPS: [] }
+};
+
+function getEventos() {
+  if (!window.esocialData.s1202RemuTrabRPPSGroup) {
+    window.esocialData.s1202RemuTrabRPPSGroup = { s1202RemuTrabRPPS: [] };
+  }
+  return window.esocialData.s1202RemuTrabRPPSGroup.s1202RemuTrabRPPS;
+}
+
+function safeValue(parent, selector) {
+  const el = parent.querySelector(selector);
+  return el ? el.value.trim() : "";
+}
+
+// Variáveis globais para edição
+window.currentEditingEventIndex = null;
+window.currentEditingEventOriginal = null;
+
+// ==========================================================================
+// 3) TABELA DE EVENTOS
+function renderEventosTable() {
+  const tbody = document.querySelector("#eventosTable tbody");
+  tbody.innerHTML = "";
+  const eventos = getEventos();
+  const searchValue = (document.getElementById("searchInput").value || "").toLowerCase();
+
+  eventos.forEach((evt, index) => {
+    const combinedText = JSON.stringify(evt).toLowerCase();
+    if (!searchValue || combinedText.includes(searchValue)) {
+      const tr = document.createElement("tr");
+
+      const tdOrdem = document.createElement("td");
+      tdOrdem.textContent = evt.ordemRegistro || "";
+      tr.appendChild(tdOrdem);
+
+      const tdCpf = document.createElement("td");
+      tdCpf.textContent = evt.trabalhador?.cpfTrab || "";
+      tr.appendChild(tdCpf);
+
+      const tdAno = document.createElement("td");
+      tdAno.textContent = evt.anoApur || "";
+      tr.appendChild(tdAno);
+
+      const tdPerApur = document.createElement("td");
+      tdPerApur.textContent = evt.perApur || "";
+      tr.appendChild(tdPerApur);
+
+      const tdAcoes = document.createElement("td");
+      const btnEdit = document.createElement("button");
+      btnEdit.className = "btn btn-sm btn-warning mr-2";
+      btnEdit.textContent = "Editar";
+      btnEdit.addEventListener("click", () => openEventoModal(index));
+      tdAcoes.appendChild(btnEdit);
+
+      const btnRemove = document.createElement("button");
+      btnRemove.className = "btn btn-sm btn-danger";
+      btnRemove.textContent = "Remover";
+      btnRemove.addEventListener("click", () => {
+        if (confirm("Deseja remover este evento?")) {
+          getEventos().splice(index, 1);
+          renderEventosTable();
+        }
+      });
+      tdAcoes.appendChild(btnRemove);
+
+      tr.appendChild(tdAcoes);
+      tbody.appendChild(tr);
+    }
+  });
+}
+document.getElementById("searchInput").addEventListener("input", renderEventosTable);
+
+// ==========================================================================
+// 4) MODAL DE EDIÇÃO DE EVENTO
+function openEventoModal(index) {
+  const isNew = (index === null || index === undefined);
+  const baseEvento = {
+    ordemRegistro: "",
+    chaveIntegracao: "",
+    anoApur: "",
+    cnpjOrgaoAntComplem: "*vazio*",
+    dtExercicioComplem: "*datavazia*",
+    dtNasctoComplem: "*datavazia*",
+    empregador: { nrInsc: "", tpInsc: { tipo: "" } },
+    indApuracao: "",
+    indPossuiPerAnt: "",
+    matricAntComplem: "*vazio*",
+    nmTrabComplem: "*vazio*",
+    observacaoComplem: "*vazio*",
+    perApur: "",
+    trabalhador: { cpfTrab: "" },
+    s1202RemuTrabRPPSPagtos: []
+  };
+
+  let evt;
+  if (isNew) {
+    evt = JSON.parse(JSON.stringify(baseEvento));
+  } else {
+    evt = JSON.parse(JSON.stringify(getEventos()[index]));
+  }
+  window.currentEditingEventIndex = isNew ? null : index;
+  window.currentEditingEventOriginal = evt;
+
+  // Preenche os campos do topo
+  document.getElementById("ordemRegistro").value = evt.ordemRegistro || "";
+  document.getElementById("chaveIntegracao").value = evt.chaveIntegracao || "";
+  document.getElementById("anoApur").value = evt.anoApur || "";
+  document.getElementById("indApuracao").value = evt.indApuracao || "";
+  document.getElementById("indPossuiPerAnt").value = evt.indPossuiPerAnt || "";
+  document.getElementById("perApur").value = evt.perApur || "";
+  document.getElementById("empregador_nrInsc").value = evt.empregador.nrInsc || "";
+  document.getElementById("empregador_tpInsc_tipo").value = evt.empregador.tpInsc.tipo || "";
+  document.getElementById("trabalhador_cpfTrab").value = evt.trabalhador.cpfTrab || "";
+  document.getElementById("nmTrabComplem").value = evt.nmTrabComplem || "";
+
+  // Renderiza os pagamentos (incluindo IdeAdv)
+  const pagamentosContainer = document.getElementById("pagamentosContainer");
+  pagamentosContainer.innerHTML = "";
+  evt.s1202RemuTrabRPPSPagtos.forEach(p => addPagamentoCard(pagamentosContainer, p));
+
+  document.getElementById("addPagamentoBtn").onclick = () => {
+    const newPagto = {
+      codCateg: { categoria: "" },
+      descRRA: "",
+      ideDmDev: "",
+      indRRA: "",
+      nrProcRRA: "",
+      qtdMesesRRA: "",
+      remunOrgSuc: "",
+      tpProcRRA: "",
+      vlrDespAdvogados: "",
+      vlrDespCustas: "",
+      s1202RemuTrabRPPSIdeAdv: [],
+      s1202RemuTrabRPPSPer: []
+    };
+    if (!window.currentEditingEventOriginal.s1202RemuTrabRPPSPagtos) {
+      window.currentEditingEventOriginal.s1202RemuTrabRPPSPagtos = [];
+    }
+    window.currentEditingEventOriginal.s1202RemuTrabRPPSPagtos.push(newPagto);
+    addPagamentoCard(pagamentosContainer, newPagto);
+  };
+
+  addPlaceholderDropdowns();
+  $("#eventoModal").modal("show");
+}
+
+// ==========================================================================
+// 5) PLACEHOLDERS: Adiciona dropdown para inputs com a classe "has-placeholder"
+function addPlaceholderDropdowns() {
+  const allInputs = document.querySelectorAll("#eventoModal input.has-placeholder");
+  allInputs.forEach(input => {
+    const fieldName = input.id || "";
+    let pureField = fieldName.includes("_") ? fieldName.split("_").slice(-1)[0] : fieldName;
+    const placeholders = placeholdersMap[pureField];
+    if (!placeholders) return;
+    if (input.parentElement.querySelector(".placeholder-select")) return;
+    const select = document.createElement("select");
+    select.className = "form-control placeholder-select";
+    select.style.minWidth = "100px";
+    select.setAttribute("data-field", "#" + fieldName);
+    const optDefault = document.createElement("option");
+    optDefault.value = "";
+    optDefault.textContent = "(Digite valor)";
+    select.appendChild(optDefault);
+    placeholders.forEach(ph => {
+      const opt = document.createElement("option");
+      opt.value = ph;
+      opt.textContent = ph;
+      select.appendChild(opt);
+    });
+    let wrapper = input.parentElement;
+    if (!wrapper.classList.contains("input-group")) return;
+    let appendDiv = wrapper.querySelector(".input-group-append");
+    if (!appendDiv) {
+      appendDiv = document.createElement("div");
+      appendDiv.className = "input-group-append";
+      wrapper.appendChild(appendDiv);
+    }
+    appendDiv.appendChild(select);
+  });
+}
+
+// ==========================================================================
+// FUNÇÕES DE OBTER DADOS DOS SUBNÍVEIS (para salvar)
+function getIdeAdvFromCard(card) {
+  const container = card.querySelector(".ideadv-container");
+  if (!container) return null;
+  const ideAdvCards = container.querySelectorAll(".ideadv-card");
+  if (ideAdvCards.length === 0) return null;
+  let arr = [];
+  ideAdvCards.forEach(card => {
+    const obj = {
+      nrInsc: safeValue(card, ".ideadv-nrInsc"),
+      tpInsc: { tipo: safeValue(card, ".ideadv-tpInsc") },
+      vlrAdv: safeValue(card, ".ideadv-vlrAdv")
+    };
+    arr.push(obj);
+  });
+  return arr;
+}
+
+function getPeriodsFromCard(card) {
+  const periodRows = card.querySelectorAll(".period-row");
+  if (periodRows.length === 0) return null;
+  let periods = [];
+  periodRows.forEach(row => {
+    const period = {
+      anoRef: safeValue(row, ".period-anoRef"),
+      perRef: safeValue(row, ".period-perRef"),
+      tpRegistro: safeValue(row, ".period-tpRegistro"),
+      s1202RemuTrabRPPSEstab: getEstabsFromPeriodRow(row)
+    };
+    periods.push(period);
+  });
+  return periods;
+}
+
+function getEstabsFromPeriodRow(row) {
+  const container = row.querySelector(".estabs-container");
+  const estabRows = container ? container.querySelectorAll(".estab-row") : [];
+  if (estabRows.length === 0) return null;
+  let estabs = [];
+  estabRows.forEach(estRow => {
+    const estab = {
+      nrInsc: {
+        iniValid: safeValue(estRow, ".estab-iniValid"),
+        nrInsc: safeValue(estRow, ".estab-nrInsc"),
+        tpInsc: { tipo: safeValue(estRow, ".estab-tpInsc") }
+      },
+      s1202RemuTrabRPPSRemu: getRemusFromEstabRow(estRow)
+    };
+    estabs.push(estab);
+  });
+  return estabs;
+}
+
+function getRemusFromEstabRow(estRow) {
+  const container = estRow.querySelector(".remu-container");
+  const remuRows = container ? container.querySelectorAll(".remu-row") : [];
+  if (remuRows.length === 0) return null;
+  let remus = [];
+  remuRows.forEach(remRow => {
+    const remu = {
+      contrato: {
+        codCateg: { categoria: safeValue(remRow, ".remu-codCateg") },
+        contratoTSV: safeValue(remRow, ".remu-contratoTSV"),
+        dtAdm: safeValue(remRow, ".remu-dtAdm"),
+        matricula: safeValue(remRow, ".remu-matricula")
+      },
+      // ATENÇÃO: Aqui garantimos a ordem desejada:
+      // 1. codRubr, 2. fatorRubr, 3. ideTabRubr, 4. indApurIR, 5. qtdRubr, 6. vrRubr
+      s1202RemuTrabRPPSItens: getItemsFromRemuRow(remRow)
+    };
+    remus.push(remu);
+  });
+  return remus;
+}
+
+function getItemsFromRemuRow(remRow) {
+  const container = remRow.querySelector(".itens-container");
+  const itemRows = container ? container.querySelectorAll(".item-row") : [];
+  if (itemRows.length === 0) return null;
+  let items = [];
+  itemRows.forEach(itemRow => {
+    // A ordem abaixo corresponde ao exemplo original:
+    // codRubr (objeto com codRubr e iniValid), fatorRubr, ideTabRubr, indApurIR, qtdRubr, vrRubr
+    const item = {
+      codRubr: {
+        codRubr: safeValue(itemRow, ".item-codRubr"),
+        iniValid: safeValue(itemRow, ".item-iniValid")
+      },
+      fatorRubr: safeValue(itemRow, ".item-fatorRubr"),
+      ideTabRubr: safeValue(itemRow, ".item-ideTabRubr"),
+      indApurIR: safeValue(itemRow, ".item-indApurIR"),
+      qtdRubr: safeValue(itemRow, ".item-qtdRubr"),
+      vrRubr: safeValue(itemRow, ".item-vrRubr")
+    };
+    items.push(item);
+  });
+  return items;
+}
+
+// ==========================================================================
+// FUNÇÕES DE ADIÇÃO DE CARTÕES (Pagamentos, IdeAdv, Períodos, etc.)
+function addPagamentoCard(container, pagto) {
+  const card = document.createElement("div");
+  card.className = "card mb-3 pagamento-card";
+  card.dataset.original = JSON.stringify(pagto);
+  card.innerHTML = `
+    <div class="card-body">
+      <h6>Pagamento</h6>
+      <div class="form-row">
+        <div class="form-group col-md-4">
+          <label>Categoria</label>
+          <input type="text" class="form-control pagto-categoria has-placeholder" value="${pagto.codCateg.categoria || ''}">
+        </div>
+        <div class="form-group col-md-4">
+          <label>ideDmDev</label>
+          <input type="text" class="form-control pagto-ideDmDev" value="${pagto.ideDmDev || ''}">
+        </div>
+        <div class="form-group col-md-4">
+          <label>indRRA</label>
+          <input type="text" class="form-control pagto-indRRA has-placeholder" value="${pagto.indRRA || ''}">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group col-md-4">
+          <label>descRRA</label>
+          <input type="text" class="form-control pagto-descRRA has-placeholder" value="${pagto.descRRA || ''}">
+        </div>
+        <div class="form-group col-md-4">
+          <label>nrProcRRA</label>
+          <input type="text" class="form-control pagto-nrProcRRA" value="${pagto.nrProcRRA || ''}">
+        </div>
+        <div class="form-group col-md-4">
+          <label>qtdMesesRRA</label>
+          <input type="text" class="form-control pagto-qtdMesesRRA has-placeholder" value="${pagto.qtdMesesRRA || ''}">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group col-md-4">
+          <label>remunOrgSuc</label>
+          <input type="text" class="form-control pagto-remunOrgSuc" value="${pagto.remunOrgSuc || ''}">
+        </div>
+        <div class="form-group col-md-4">
+          <label>tpProcRRA</label>
+          <input type="text" class="form-control pagto-tpProcRRA has-placeholder" value="${pagto.tpProcRRA || ''}">
+        </div>
+        <div class="form-group col-md-4">
+          <label>vlrDespAdvogados</label>
+          <input type="text" class="form-control pagto-vlrDespAdvogados has-placeholder" value="${pagto.vlrDespAdvogados || ''}">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group col-md-4">
+          <label>vlrDespCustas</label>
+          <input type="text" class="form-control pagto-vlrDespCustas has-placeholder" value="${pagto.vlrDespCustas || ''}">
+        </div>
+        <div class="form-group col-md-4 d-flex align-items-end">
+          <button type="button" class="btn btn-outline-danger remove-pagto-btn">Remover Pagamento</button>
+        </div>
+      </div>
+      <!-- Seção IdeAdv -->
+      <h6>IdeAdv</h6>
+      <div class="ideadv-container"></div>
+      <button type="button" class="btn btn-sm btn-outline-secondary add-ideadv-btn">Adicionar IdeAdv</button>
+      <hr>
+      <!-- Seção Períodos -->
+      <h6>Períodos</h6>
+      <div class="periods-container"></div>
+      <button type="button" class="btn btn-sm btn-outline-primary add-period-btn">Adicionar Período</button>
+    </div>
+  `;
+  container.appendChild(card);
+
+  card.querySelector(".remove-pagto-btn").onclick = () => {
+    if (confirm("Remover este pagamento?")) { card.remove(); }
+  };
+
+  // IdeAdv
+  const ideadvContainer = card.querySelector(".ideadv-container");
+  if (pagto.s1202RemuTrabRPPSIdeAdv && pagto.s1202RemuTrabRPPSIdeAdv.length) {
+    pagto.s1202RemuTrabRPPSIdeAdv.forEach(ideadv => addIdeAdvCard(ideadvContainer, ideadv));
+  }
+  card.querySelector(".add-ideadv-btn").onclick = () => {
+    const newIdeAdv = {
+      nrInsc: "*vazio*",
+      tpInsc: { tipo: "*numerovazio*" },
+      vlrAdv: "*numerovazio*"
+    };
+    if (!pagto.s1202RemuTrabRPPSIdeAdv) { pagto.s1202RemuTrabRPPSIdeAdv = []; }
+    pagto.s1202RemuTrabRPPSIdeAdv.push(newIdeAdv);
+    addIdeAdvCard(ideadvContainer, newIdeAdv);
+  };
+
+  // Períodos
+  const periodsContainer = card.querySelector(".periods-container");
+  if (pagto.s1202RemuTrabRPPSPer && pagto.s1202RemuTrabRPPSPer.length) {
+    pagto.s1202RemuTrabRPPSPer.forEach(per => addPeriodRow(periodsContainer, per));
+  }
+  card.querySelector(".add-period-btn").onclick = () => {
+    const newPeriod = {
+      anoRef: "",
+      perRef: "",
+      tpRegistro: "",
+      s1202RemuTrabRPPSEstab: []
+    };
+    if (!pagto.s1202RemuTrabRPPSPer) { pagto.s1202RemuTrabRPPSPer = []; }
+    pagto.s1202RemuTrabRPPSPer.push(newPeriod);
+    addPeriodRow(periodsContainer, newPeriod);
+  };
+
+  addPlaceholderDropdowns();
+}
+
+function addIdeAdvCard(container, ideadv) {
+  const card = document.createElement("div");
+  card.className = "card mb-2 ideadv-card p-2";
+  card.dataset.original = JSON.stringify(ideadv);
+  card.innerHTML = `
+    <div class="form-row">
+      <div class="form-group col-md-4">
+        <label>nrInsc</label>
+        <input type="text" class="form-control ideadv-nrInsc has-placeholder" value="${ideadv.nrInsc || ''}">
+      </div>
+      <div class="form-group col-md-4">
+        <label>tpInsc</label>
+        <input type="text" class="form-control ideadv-tpInsc has-placeholder" value="${ideadv.tpInsc.tipo || ''}">
+      </div>
+      <div class="form-group col-md-4">
+        <label>vlrAdv</label>
+        <input type="text" class="form-control ideadv-vlrAdv has-placeholder" value="${ideadv.vlrAdv || ''}">
+      </div>
+    </div>
+    <button type="button" class="btn btn-outline-danger btn-sm remove-ideadv-btn">Remover IdeAdv</button>
+  `;
+  container.appendChild(card);
+  card.querySelector(".remove-ideadv-btn").onclick = () => {
+    if (confirm("Remover este IdeAdv?")) { card.remove(); }
+  };
+  addPlaceholderDropdowns();
+}
+
+function addPeriodRow(container, period) {
+  const row = document.createElement("div");
+  row.className = "border p-2 mb-2 period-row";
+  row.innerHTML = `
+    <div class="form-row">
+      <div class="form-group col-md-3">
+        <label>Ano Ref</label>
+        <input type="text" class="form-control period-anoRef has-placeholder" value="${period.anoRef || ''}">
+      </div>
+      <div class="form-group col-md-3">
+        <label>Per Ref</label>
+        <input type="text" class="form-control period-perRef has-placeholder" value="${period.perRef || ''}">
+      </div>
+      <div class="form-group col-md-3">
+        <label>tpRegistro</label>
+        <input type="text" class="form-control period-tpRegistro has-placeholder" value="${period.tpRegistro || ''}">
+      </div>
+      <div class="form-group col-md-3 d-flex align-items-end">
+        <button type="button" class="btn btn-outline-danger remove-period-btn">Remover Período</button>
+      </div>
+    </div>
+    <h6>Estabelecimentos</h6>
+    <div class="estabs-container"></div>
+    <button type="button" class="btn btn-sm btn-outline-secondary add-estab-btn">Adicionar Estabelecimento</button>
+  `;
+  container.appendChild(row);
+  row.querySelector(".remove-period-btn").onclick = () => { row.remove(); };
+
+  const estabsContainer = row.querySelector(".estabs-container");
+  if (period.s1202RemuTrabRPPSEstab && period.s1202RemuTrabRPPSEstab.length) {
+    period.s1202RemuTrabRPPSEstab.forEach(est => addEstabRow(estabsContainer, est));
+  }
+  row.querySelector(".add-estab-btn").onclick = () => {
+    const newEstab = {
+      nrInsc: { iniValid: "", nrInsc: "", tpInsc: { tipo: "" } },
+      s1202RemuTrabRPPSRemu: []
+    };
+    if (!period.s1202RemuTrabRPPSEstab) { period.s1202RemuTrabRPPSEstab = []; }
+    period.s1202RemuTrabRPPSEstab.push(newEstab);
+    addEstabRow(estabsContainer, newEstab);
+  };
+
+  addPlaceholderDropdowns();
+}
+
+function addEstabRow(container, estab) {
+  const row = document.createElement("div");
+  row.className = "border p-2 mb-2 estab-row";
+  row.innerHTML = `
+    <div class="form-row">
+      <div class="form-group col-md-3">
+        <label>iniValid</label>
+        <input type="text" class="form-control estab-iniValid has-placeholder" value="${estab.nrInsc.iniValid || ''}">
+      </div>
+      <div class="form-group col-md-3">
+        <label>nrInsc</label>
+        <input type="text" class="form-control estab-nrInsc has-placeholder" value="${estab.nrInsc.nrInsc || ''}">
+      </div>
+      <div class="form-group col-md-3">
+        <label>tpInsc</label>
+        <input type="text" class="form-control estab-tpInsc has-placeholder" value="${estab.nrInsc.tpInsc.tipo || ''}">
+      </div>
+      <div class="form-group col-md-3 d-flex align-items-end">
+        <button type="button" class="btn btn-outline-danger remove-estab-btn">Remover Estabelecimento</button>
+      </div>
+    </div>
+    <h6>Remunerações</h6>
+    <div class="remu-container"></div>
+    <button type="button" class="btn btn-sm btn-outline-secondary add-remu-btn">Adicionar Remuneração</button>
+  `;
+  container.appendChild(row);
+  row.querySelector(".remove-estab-btn").onclick = () => { row.remove(); };
+
+  const remuContainer = row.querySelector(".remu-container");
+  if (estab.s1202RemuTrabRPPSRemu && estab.s1202RemuTrabRPPSRemu.length) {
+    estab.s1202RemuTrabRPPSRemu.forEach(r => addRemuRow(remuContainer, r));
+  }
+  row.querySelector(".add-remu-btn").onclick = () => {
+    const newRemu = {
+      contrato: {
+        codCateg: { categoria: "" },
+        contratoTSV: "",
+        dtAdm: "",
+        matricula: ""
+      },
+      s1202RemuTrabRPPSItens: []
+    };
+    if (!estab.s1202RemuTrabRPPSRemu) { estab.s1202RemuTrabRPPSRemu = []; }
+    estab.s1202RemuTrabRPPSRemu.push(newRemu);
+    addRemuRow(remuContainer, newRemu);
+  };
+
+  addPlaceholderDropdowns();
+}
+
+function addRemuRow(container, remu) {
+  const row = document.createElement("div");
+  row.className = "border p-2 mb-2 remu-row";
+  row.innerHTML = `
+    <div class="form-row">
+      <div class="form-group col-md-3">
+        <label>codCateg</label>
+        <input type="text" class="form-control remu-codCateg has-placeholder" value="${remu.contrato.codCateg.categoria || ''}">
+      </div>
+      <div class="form-group col-md-3">
+        <label>contratoTSV</label>
+        <input type="text" class="form-control remu-contratoTSV has-placeholder" value="${remu.contrato.contratoTSV || ''}">
+      </div>
+      <div class="form-group col-md-3">
+        <label>dtAdm</label>
+        <input type="text" class="form-control remu-dtAdm has-placeholder" value="${remu.contrato.dtAdm || ''}">
+      </div>
+      <div class="form-group col-md-3">
+        <label>Matrícula</label>
+        <input type="text" class="form-control remu-matricula has-placeholder" value="${remu.contrato.matricula || ''}">
+      </div>
+    </div>
+    <div class="form-group">
+      <button type="button" class="btn btn-outline-danger remove-remu-btn">Remover Remuneração</button>
+    </div>
+    <h6>Itens de Rubrica</h6>
+    <div class="itens-container"></div>
+    <button type="button" class="btn btn-sm btn-outline-secondary add-item-btn">Adicionar Item</button>
+  `;
+  container.appendChild(row);
+  row.querySelector(".remove-remu-btn").onclick = () => { row.remove(); };
+
+  const itensContainer = row.querySelector(".itens-container");
+  if (remu.s1202RemuTrabRPPSItens && remu.s1202RemuTrabRPPSItens.length) {
+    remu.s1202RemuTrabRPPSItens.forEach(i => addItemRow(itensContainer, i));
+  }
+  row.querySelector(".add-item-btn").onclick = () => {
+    const newItem = {
+      codRubr: { codRubr: "", iniValid: "" },
+      fatorRubr: "",
+      ideTabRubr: "",
+      indApurIR: "",
+      qtdRubr: "",
+      vrRubr: ""
+    };
+    if (!remu.s1202RemuTrabRPPSItens) { remu.s1202RemuTrabRPPSItens = []; }
+    remu.s1202RemuTrabRPPSItens.push(newItem);
+    addItemRow(itensContainer, newItem);
+  };
+
+  addPlaceholderDropdowns();
+}
+
+function addItemRow(container, item) {
+  // Ajustado para que a ordem de propriedades seja:
+  // codRubr (com iniValid), fatorRubr, ideTabRubr, indApurIR, qtdRubr, vrRubr
+  const row = document.createElement("div");
+  row.className = "border p-2 mb-2 item-row";
+  row.innerHTML = `
+    <div class="form-row">
+      <div class="form-group col-md-2">
+        <label>codRubr</label>
+        <input type="text" class="form-control item-codRubr has-placeholder" value="${item.codRubr.codRubr || ''}">
+      </div>
+      <div class="form-group col-md-2">
+        <label>iniValid</label>
+        <input type="text" class="form-control item-iniValid has-placeholder" value="${item.codRubr.iniValid || ''}">
+      </div>
+      <div class="form-group col-md-2">
+        <label>fatorRubr</label>
+        <input type="text" class="form-control item-fatorRubr has-placeholder" value="${item.fatorRubr || ''}">
+      </div>
+      <div class="form-group col-md-2">
+        <label>ideTabRubr</label>
+        <input type="text" class="form-control item-ideTabRubr has-placeholder" value="${item.ideTabRubr || ''}">
+      </div>
+      <div class="form-group col-md-2">
+        <label>indApurIR</label>
+        <input type="text" class="form-control item-indApurIR has-placeholder" value="${item.indApurIR || ''}">
+      </div>
+      <div class="form-group col-md-1">
+        <label>qtdRubr</label>
+        <input type="text" class="form-control item-qtdRubr has-placeholder" value="${item.qtdRubr || ''}">
+      </div>
+      <div class="form-group col-md-1">
+        <label>Valor</label>
+        <input type="text" class="form-control item-vrRubr has-placeholder" value="${item.vrRubr || ''}">
+      </div>
+    </div>
+    <button type="button" class="btn btn-outline-danger remove-item-btn">Remover Item</button>
+  `;
+  container.appendChild(row);
+  row.querySelector(".remove-item-btn").onclick = () => {
+    if (confirm("Remover este item?")) { row.remove(); }
+  };
+  addPlaceholderDropdowns();
+}
+
+// ==========================================================================
+// 7) SALVAR EVENTO: Realiza merge dos dados editados com os originais
+document.getElementById("saveEventoBtn").onclick = () => {
+  let evtOriginal = window.currentEditingEventOriginal;
+  let evtAtualizado = JSON.parse(JSON.stringify(evtOriginal));
+
+  evtAtualizado.ordemRegistro = safeValue(document, "#ordemRegistro");
+  evtAtualizado.chaveIntegracao = safeValue(document, "#chaveIntegracao");
+  evtAtualizado.anoApur = safeValue(document, "#anoApur");
+  evtAtualizado.indApuracao = safeValue(document, "#indApuracao");
+  evtAtualizado.indPossuiPerAnt = safeValue(document, "#indPossuiPerAnt");
+  evtAtualizado.perApur = safeValue(document, "#perApur");
+  evtAtualizado.empregador.nrInsc = safeValue(document, "#empregador_nrInsc");
+  evtAtualizado.empregador.tpInsc.tipo = safeValue(document, "#empregador_tpInsc_tipo");
+  evtAtualizado.trabalhador.cpfTrab = safeValue(document, "#trabalhador_cpfTrab");
+  evtAtualizado.nmTrabComplem = safeValue(document, "#nmTrabComplem");
+
+  const pagCards = document.querySelectorAll(".pagamento-card");
+  evtAtualizado.s1202RemuTrabRPPSPagtos = Array.from(pagCards).map(card => {
+    const originalPagto = JSON.parse(card.dataset.original || "{}");
+    const updatedPagto = {
+      codCateg: { categoria: safeValue(card, ".pagto-categoria") },
+      descRRA: safeValue(card, ".pagto-descRRA"),
+      ideDmDev: safeValue(card, ".pagto-ideDmDev"),
+      indRRA: safeValue(card, ".pagto-indRRA"),
+      nrProcRRA: safeValue(card, ".pagto-nrProcRRA"),
+      qtdMesesRRA: safeValue(card, ".pagto-qtdMesesRRA"),
+      remunOrgSuc: safeValue(card, ".pagto-remunOrgSuc"),
+      tpProcRRA: safeValue(card, ".pagto-tpProcRRA"),
+      vlrDespAdvogados: safeValue(card, ".pagto-vlrDespAdvogados"),
+      vlrDespCustas: safeValue(card, ".pagto-vlrDespCustas"),
+      s1202RemuTrabRPPSIdeAdv: getIdeAdvFromCard(card) || originalPagto.s1202RemuTrabRPPSIdeAdv,
+      s1202RemuTrabRPPSPer: getPeriodsFromCard(card) || originalPagto.s1202RemuTrabRPPSPer
+    };
+    return mergeDeep(originalPagto, updatedPagto);
+  });
+
+  if (window.currentEditingEventIndex === null) {
+    getEventos().push(evtAtualizado);
+  } else {
+    getEventos()[window.currentEditingEventIndex] = evtAtualizado;
+  }
+
+  $("#eventoModal").modal("hide");
+  renderEventosTable();
+};
+
+// ==========================================================================
+// 8) CARREGAR ARQUIVO (FileReader)
+const fileInput = document.getElementById("fileInput");
+fileInput.addEventListener("change", function() {
+  const file = this.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      window.esocialData = JSON.parse(e.target.result);
+      renderEventosTable();
+      alert("Arquivo carregado com sucesso!");
+    } catch (err) {
+      alert("Erro ao ler JSON: " + err);
+    }
+  };
+  reader.readAsText(file);
+});
+
+// ==========================================================================
+// 9) BAIXAR ARQUIVO (Formatação especial)
+function gerarArquivoEsocialFormatado(data) {
+  const eventos = data?.s1202RemuTrabRPPSGroup?.s1202RemuTrabRPPS || [];
+  let resultado = '{"s1202RemuTrabRPPSGroup":{"s1202RemuTrabRPPS":[';
+  for (let i = 0; i < eventos.length; i++) {
+    const eStr = JSON.stringify(eventos[i], null, 0);
+    resultado += (i === 0 ? "\n" : "\n,") + eStr;
+  }
+  resultado += "\n]}}";
+  return resultado;
+}
+
+document.getElementById("downloadBtn").addEventListener("click", () => {
+  try {
+    const dataStr = gerarArquivoEsocialFormatado(window.esocialData);
+    const blob = new Blob([dataStr], { type: "application/json;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "arquivo_eSocial.json");
+    link.click();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    alert("Erro ao gerar download: " + err);
+  }
+});
+
+// ==========================================================================
+// 10) SCRIPTS (Substituição Global)
+document.getElementById("applyScriptBtn").addEventListener("click", () => {
+  const scope = document.getElementById("scriptScope").value; 
+  const field = document.getElementById("scriptField").value.trim();
+  const oldVal = document.getElementById("scriptOldValue").value.trim();
+  const newVal = document.getElementById("scriptNewValue").value.trim();
+
+  if (!field) {
+    alert("Informe o nome do campo a substituir.");
+    return;
+  }
+
+  function replaceInEvento(evt) {
+    if (scope === "evento") {
+      if (evt.hasOwnProperty(field)) {
+        if (!oldVal || evt[field] === oldVal) { evt[field] = newVal; }
+      }
+    }
+    if (["pagto", "periodo", "estab", "remu", "item"].includes(scope)) {
+      (evt.s1202RemuTrabRPPSPagtos || []).forEach(p => {
+        if (scope === "pagto") {
+          if (p.hasOwnProperty(field)) {
+            if (!oldVal || p[field] === oldVal) { p[field] = newVal; }
+          }
+        }
+        (p.s1202RemuTrabRPPSPer || []).forEach(period => {
+          if (scope === "periodo") {
+            if (period.hasOwnProperty(field)) {
+              if (!oldVal || period[field] === oldVal) { period[field] = newVal; }
+            }
+          }
+          (period.s1202RemuTrabRPPSEstab || []).forEach(est => {
+            if (scope === "estab") {
+              if (est.hasOwnProperty(field)) {
+                if (!oldVal || est[field] === oldVal) { est[field] = newVal; }
+              }
+              if (["iniValid", "nrInsc", "tipo"].includes(field)) {
+                if (!oldVal || est.nrInsc[field] === oldVal) { est.nrInsc[field] = newVal; }
+              }
+            }
+            (est.s1202RemuTrabRPPSRemu || []).forEach(r => {
+              if (scope === "remu") {
+                if (r.contrato.hasOwnProperty(field)) {
+                  if (!oldVal || r.contrato[field] === oldVal) { r.contrato[field] = newVal; }
+                }
+                if (field === "codCateg") {
+                  if (!oldVal || r.contrato.codCateg.categoria === oldVal) { r.contrato.codCateg.categoria = newVal; }
+                }
+              }
+              (r.s1202RemuTrabRPPSItens || []).forEach(i => {
+                if (scope === "item") {
+                  if (i.hasOwnProperty(field)) {
+                    if (!oldVal || i[field] === oldVal) { i[field] = newVal; }
+                  }
+                  if (["codRubr", "iniValid"].includes(field)) {
+                    if (!oldVal || i.codRubr[field] === oldVal) { i.codRubr[field] = newVal; }
+                  }
+                }
+              });
+            });
+          });
+        });
+      });
+    }
+  }
+
+  getEventos().forEach(e => replaceInEvento(e));
+  $("#scriptsModal").modal("hide");
+  renderEventosTable();
+  alert(`Substituição concluída! Campo '${field}' -> '${newVal}'.`);
+});
+
+// Inicializa a tabela ao carregar
+renderEventosTable();
+</script>
+{% endblock %}
